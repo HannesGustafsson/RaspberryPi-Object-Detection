@@ -5,14 +5,14 @@ from datetime import datetime
 
 #datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-DIR_NAME = os.path.dirname(__file__)
-FILE_NAME = os.path.join(DIR_NAME, 'authentication/details.json')
+CWD_PATH = os.path.dirname(__file__)
+FILE_PATH = os.path.join(CWD_PATH, 'authentication/details.json')
 
-with open(FILE_NAME, 'r') as f:
+with open(FILE_PATH, 'r') as f:
     data = f.read()
     print(data)
 
-# parse file
+# Parse file
 obj = json.loads(data)
 
 

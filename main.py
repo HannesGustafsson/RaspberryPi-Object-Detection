@@ -54,8 +54,9 @@ input_height = input_details[0]['shape'][1]
 input_width = input_details[0]['shape'][2]
 
 
-# Initialize frame rate calculation
+# Initialize frame rate calculation and timer
 fps = 1
+timer = round(time.time())
 freq = cv2.getTickFrequency()
 
 
@@ -65,7 +66,6 @@ time.sleep(1)
 
 
 while True:
-
     # Start frame rate timer
     t1 = cv2.getTickCount()
 
@@ -84,7 +84,17 @@ while True:
     boxes = interpreter.get_tensor(output_details[0]['index'])[0] # Bounding box coordinates of detected objects
     classes = interpreter.get_tensor(output_details[1]['index'])[0] # Class index of detected objects
     scores = interpreter.get_tensor(output_details[2]['index'])[0] # Confidence of detected objects
-    print(output_details)
+    
+    # Check timer and send data
+    if (round(time.time() > (timer + 10))):
+        for i in range(len(scores)):
+            if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0)):
+                for j in object_types:
+                    if (labels[int(classes[i])] == j):
+                        print(j)
+                        print(timer)
+            
+        timer = round(time.time())
 
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     for i in range(len(scores)):
@@ -108,7 +118,7 @@ while True:
             cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
             
             #if(object_name == "person"):
-               # postgresql.write()
+               #postgresql.write()
 
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}'.format(fps),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
