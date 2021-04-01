@@ -1,9 +1,6 @@
 import os
 import psycopg2
 import json
-from datetime import datetime
-
-#datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 CWD_PATH = os.path.dirname(__file__)
 FILE_PATH = os.path.join(CWD_PATH, 'authentication/details.json')

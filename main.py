@@ -4,6 +4,7 @@ import argparse
 import cv2
 import numpy as np
 import time
+from datetime import datetime
 import video_stream
 from tflite_runtime.interpreter import Interpreter
 import postgresql
@@ -85,16 +86,26 @@ while True:
     classes = interpreter.get_tensor(output_details[1]['index'])[0] # Class index of detected objects
     scores = interpreter.get_tensor(output_details[2]['index'])[0] # Confidence of detected objects
     
-    # Check timer and send data
+    # Check if timer is over 10 seconds and send data
     if (round(time.time() > (timer + 10))):
-        for i in range(len(scores)):
-            if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0)):
-                for j in object_types:
-                    if (labels[int(classes[i])] == j):
-                        print(j)
-                        print(timer)
-            
+        object_detected = False
         timer = round(time.time())
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Check every object detected
+        for i in range(len(scores)):
+            label = labels[int(classes[i])]
+            
+            # If score is over threshold and object type is being tracked
+            # Set object_detected to True and send entry to database
+            if ((scores[i] > min_conf_threshold) and (label in object_types)):
+                object_detected = True
+                postgresql.write(label, int(scores[i]*100), 12, 12, timestamp)
+                
+        # Save all entries in database by committing
+        if(object_detected == True):  
+            postgresql.save()
+            
 
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     for i in range(len(scores)):
