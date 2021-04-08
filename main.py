@@ -45,7 +45,6 @@ with open(LABELS_PATH, 'r') as f:
     
 with open(COLORS_PATH, 'r') as f:
     data = f.read()
-    print(data)
 
 # Parse file
 json_colors = json.loads(data)
@@ -144,7 +143,6 @@ while True:
                 cv2.circle(frame, (x_pos,y_pos), radius=4, color=(0, 0, 255), thickness=-1)
                 cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
                 cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
-
             
             # If object type is being tracked and 10 seconds have passed
             # Send to database
@@ -152,6 +150,16 @@ while True:
                 print(label, int(scores[i]*100), x_pos, y_pos, timestamp)
                 object_detected = True
                 postgresql.write(label, int(scores[i]*100), x_pos, y_pos, timestamp)
+                
+        # Rescale and upload screenshot to database every 10 seconds
+        if(send_data == True):
+            scale_factor = 0.5
+            frame_rescaled = cv2.resize(frame, (int(frame.shape[1] * scale_factor), int(frame.shape[0] * scale_factor)))
+            postgresql.writeImage(frame_rescaled, timestamp)
+            
+            postgresql.save()
+            object_detected = False
+            send_data = False
 
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}'.format(fps),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
@@ -163,11 +171,6 @@ while True:
     t2 = cv2.getTickCount()
     time1 = (t2-t1)/freq
     fps= 1/time1
-    
-    if(object_detected == True):  
-        postgresql.save()
-        object_detected = False
-        send_data = False
 
     # Press 'q' to quit
     if cv2.waitKey(1) == ord('q'):

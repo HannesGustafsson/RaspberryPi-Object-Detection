@@ -6,9 +6,9 @@ class VideoStream:
     def __init__(self,resolution=(640,480)):
         # Initialize piCamera
         self.stream = cv2.VideoCapture(0)
-        ret = self.stream.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-        ret = self.stream.set(3,resolution[0])
-        ret = self.stream.set(4,resolution[1])
+        self.stream.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        self.stream.set(3,resolution[0])
+        self.stream.set(4,resolution[1])
             
         # Read first frame from the stream
         (self.grabbed, self.frame) = self.stream.read()
@@ -38,3 +38,15 @@ class VideoStream:
     # Stop camera and thread running camera
     def stop(self):
         self.disabled = True
+        
+class VideoCamera(object):
+    def __init__(self):
+        self.video = cv2.VideoCapture(0)
+
+    def __del__(self):
+        self.video.release()        
+
+    def get_frame(self):
+        frame = self.video.read()
+        jpeg = cv2.imencode('.jpg', frame)
+        return jpeg.tobytes()

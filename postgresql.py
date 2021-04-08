@@ -35,6 +35,17 @@ def write(label, confidence, xposition, yposition, timestamp):
         print("error writing to database:", e)
         
         
+# Convert to binary and write image to database
+def writeImage(image, timestamp):
+    try:
+        binary = psycopg2.Binary(image)
+        cur.execute("INSERT INTO images (data, timestamp) VALUES (%s, %s)", (binary, timestamp))
+        print("Success writing to database")
+        #cur.execute("INSERT INTO images(data) VALUES (%s)", (binary,))
+        
+    except Exception as e:
+        print("error writing image to database:", e)
+        
 # Commit additions to save    
 def save():
     try:
