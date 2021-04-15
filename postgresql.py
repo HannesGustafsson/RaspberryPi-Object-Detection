@@ -46,6 +46,18 @@ def writeImage(image, timestamp):
     except Exception as e:
         print("error writing image to database:", e)
         
+
+# Get latest image from database
+def getImage():
+    try:
+        cur.execute("SELECT data FROM images ORDER BY timestamp DESC LIMIT 1")
+        image_data = cur.fetchone()
+        print(type(image_data[0]))
+        return image_data[0]
+        
+    except Exception as e:
+        print("error getting image from database:", e)
+        
 # Commit additions to save    
 def save():
     try:

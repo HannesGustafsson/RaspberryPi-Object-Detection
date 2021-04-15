@@ -153,11 +153,12 @@ while True:
                 
         # Rescale and upload screenshot to database every 10 seconds
         if(send_data == True):
-            scale_factor = 0.5
+            scale_factor = 0.75
             frame_rescaled = cv2.resize(frame, (int(frame.shape[1] * scale_factor), int(frame.shape[0] * scale_factor)))
             postgresql.writeImage(frame_rescaled, timestamp)
             
             postgresql.save()
+            cv2.imwrite('image.jpg', frame_rescaled)
             object_detected = False
             send_data = False
 
