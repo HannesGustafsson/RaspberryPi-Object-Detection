@@ -147,9 +147,9 @@ while True:
             # If object type is being tracked and 10 seconds have passed
             # Send to database
             if ((object_name in object_types) and (send_data == True)):
-                print(label, int(scores[i]*100), x_pos, y_pos, timestamp)
+                print(object_name, int(scores[i]*100), x_pos, y_pos, timestamp)
                 object_detected = True
-                postgresql.write(label, int(scores[i]*100), x_pos, y_pos, timestamp)
+                postgresql.write(object_name, int(scores[i]*100), x_pos, y_pos, timestamp)
                 
         # Rescale and upload screenshot to database every 10 seconds
         if(send_data == True):
