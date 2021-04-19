@@ -29,11 +29,10 @@ app.get('/', async function (req, res) {
 });
 
 app.post('/', async function (req, res) {
-    console.log(await getImage(req.body.dropdownTimestamp));
     res.render('index', {
         timestamps: await getTimestamps(),
         databases: await getDatabases(),
-        image: "static/image.jpg",
+        image: await getImage(req.body.dropdownTimestamp),
         imageTimestamp: req.body.dropdownTimestamp
     });
 })
@@ -48,7 +47,7 @@ async function getTimestamps() {
     let data;
     await client.query('SELECT timestamp FROM images ORDER BY timestamp DESC LIMIT 25').then(res => {
         data = res.rows.map(element => {
-            return element.timestamp;
+            return element.timestamp.toLocaleString();
         });
     })
     return data;
@@ -69,10 +68,11 @@ async function getDatabases(){
 async function getImage(ts){
     let value = [ts]
     let data;
-    await client.query("SELECT encode(data, 'base64') FROM images WHERE timestamp=$1", value).then(res => {
+    await client.query("SELECT encode(data, 'escape') FROM images WHERE timestamp=$1", value).then(res => {
         data = res.rows.map(element => {
             return element;
         });
     })
-    return data[0].encode;
+    var source = 'data:image/jpeg;base64,' + data[0].encode;
+    return source;
 }
