@@ -10,11 +10,15 @@
   <title>Camera</title>
 </head>
 
+
 <body style="background-color:rgb(202, 229, 238);">
-  <div class="m-3 d-flex justify-content-center">
-    <div class="dropdown">
-      <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton" data-toggle="dropdown"
-        aria-haspopup="true" aria-expanded="false">
+
+  <!-- Database dropdown -->
+  <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+    <nav class="navbar-brand">Camera Feed</nav>
+    <li class="nav-item dropdown">
+      <button class="btn btn-secondary dropdown-toggle  mr-5" type="button" id="dropdownMenuButton"
+        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
         Connected databases
       </button>
       <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
@@ -24,29 +28,29 @@
           </a>
           <% }) %>
       </div>
+    </li>
+
+    <div class="d-flex justify-content-center">
+      <form class="form-inline" action="/" method="post">
+        <div class="form-group">
+          <select class="form-control mr-1" name="dropdownTimestamp" style="width:auto">
+            <% timestamps.forEach((timestamp)=> { %>
+              <option value="<%= timestamp %>">
+                <%= timestamp %>
+              </option>
+              <% }) %>
+          </select>
+          <button type="submit" value="post" class="btn btn-secondary">Load</button>
+        </div>
+      </form>
     </div>
-  </div>
+  </nav>
 
-  <div class="d-flex justify-content-center">
-    <form class="form-inline" action="/" method="post">
-      <div class="form-group">
-        <select class="form-control" name="dropdownTimestamp" style="width:auto">
-          <% timestamps.forEach((timestamp)=> { %>
-            <option value="<%= timestamp %>">
-              <%= timestamp %>
-            </option>
-            <% }) %>
-        </select>
-        <button type="submit" value="post" class="btn btn-primary">Load</button>
-      </div>
-    </form>
-  </div>
-
-  <div class="m-3 d-flex justify-content-center">
-    <%= imageTimestamp %>
-  </div>
   <div class="m-3 d-flex justify-content-center">
     <img src="<%= image %>">
+  </div>
+  <div class="m-3 d-flex justify-content-center">
+    <h3><%= imageTimestamp %></h3>
   </div>
 
 
