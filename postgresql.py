@@ -1,6 +1,9 @@
 import os
 import psycopg2
 import json
+import base64
+import cv2
+
 
 CWD_PATH = os.path.dirname(__file__)
 FILE_PATH = os.path.join(CWD_PATH, 'authentication/details.json')
@@ -38,9 +41,12 @@ def write(label, confidence, xposition, yposition, timestamp):
 # Convert to binary and write image to database
 def writeImage(image, timestamp):
     try:
-        binary = psycopg2.Binary(image)
+        retval, buffer = cv2.imencode('.jpg', image)
+        str = base64.b64encode(buffer)
+        binary = bytearray(str)
+        print(binary)
         cur.execute("INSERT INTO images (data, timestamp) VALUES (%s, %s)", (binary, timestamp))
-        print("Success writing to database")
+        print("Success writing image to database")
         #cur.execute("INSERT INTO images(data) VALUES (%s)", (binary,))
         
     except Exception as e:
