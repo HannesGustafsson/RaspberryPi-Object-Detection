@@ -14,20 +14,23 @@ from models.detected_object import DetectedObject
 
 # Set and parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument('--threshold', help='Specify minimum required confidence for an object. Default: 0.5', default=0.5)
-parser.add_argument('--objecttypes', help='Specify which object types to keep track of. Default: person car', default='person car 1 2 3 4 5 6 7 8 9')
-parser.add_argument('--resolution', help='Specify camera resolution in format WIDTHxHEIGHT. Default: 1280x720', default='1280x720')
+parser.add_argument('--threshold', help = 'Specify minimum required confidence for an object. Default: 0.5', default = 0.5)
+parser.add_argument('--objecttypes', help =' Specify which object types to keep track of. Default: person car', default = 'person car 1 2 3 4 5 6 7 8 9')
+parser.add_argument('--resolution', help = 'Specify camera resolution in format WIDTHxHEIGHT. Default: 1280x720', default = '1280x720')
+parser.add_argument('--interval', help = 'Specify minimum DB transmission interval. Default: 10', default = 10)
 args = parser.parse_args()
 
-min_conf_threshold = float(args.threshold)
-camera_res = list(map(int, args.resolution.split('x')))
-object_types = args.objecttypes.split()
+MIN_CONF_THRESHOLD = float(args.threshold) # Minimum confidence level for detection
+CAMERA_RES = list(map(int, args.resolution.split('x'))) # Array containing camera resolution
+OBJECT_TYPES = args.objecttypes.split() # Array containing tracked object types
+TRANSMISSION_INTERVAL = int(args.interval) # Minimum numbers of seconds between database inserts
 
-# Remove all elements after 10
-if (len(object_types) > 10):
-    del object_types[10:]
+# Limit number of tracked object types to 10
+if (len(OBJECT_TYPES) > 10):
+    del OBJECT_TYPES[10:]
 
-print('Logging object types: ', object_types)
+print('Logging object types:', OBJECT_TYPES)
+print('DB transmission interval:', TRANSMISSION_INTERVAL)
 
 
 # Path to working directory
@@ -78,9 +81,8 @@ timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 # Initialize video stream
-videostream = VideoStream(resolution=(camera_res[0], camera_res[1])).start()
+videostream = VideoStream(resolution=(CAMERA_RES[0], CAMERA_RES[1])).start()
 time.sleep(1)
-
 
 
 while True:
@@ -102,9 +104,14 @@ while True:
     boxes = interpreter.get_tensor(output_details[0]['index'])[0] # Object box cooridinates: boxes[][ymin, xmin, ymax, xmax]
     classes = interpreter.get_tensor(output_details[1]['index'])[0] # Index of object type in labels.txt file: classes[][index]
     scores = interpreter.get_tensor(output_details[2]['index'])[0] # Model confidence in class definition: scores[][float]
+    
+    tracked_objects = 0
+    untracked_objects = 0
+    
+    data_sent = False
             
     # If 10 seconds have passed set send_data flag to True and save current timestamp
-    if (round(time.time() > (timer + 10))):
+    if (round(time.time() > (timer + TRANSMISSION_INTERVAL))):
         print('TIMER')
         send_data = True
         timer = round(time.time())
@@ -112,58 +119,69 @@ while True:
 
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     for i in range(len(scores)):
-        if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0)):
+        if ((scores[i] > MIN_CONF_THRESHOLD) and (scores[i] <= 1.0)):
             
             # Create new detected object with detection parameters
             obj = DetectedObject(labels[int(classes[i])],
                                       scores[i],
-                                      int(max((boxes[i][0] * camera_res[1]), 1)),
-                                      int(max((boxes[i][1] * camera_res[0]), 1)),
-                                      int(min((boxes[i][2] * camera_res[1]), camera_res[1])),
-                                      int(min((boxes[i][3] * camera_res[0]), camera_res[0])))
+                                      int(max((boxes[i][0] * CAMERA_RES[1]), 1)),
+                                      int(max((boxes[i][1] * CAMERA_RES[0]), 1)),
+                                      int(min((boxes[i][2] * CAMERA_RES[1]), CAMERA_RES[1])),
+                                      int(min((boxes[i][3] * CAMERA_RES[0]), CAMERA_RES[0])))
            
-            # Draw object with specific color based on object type
-            if (obj.name in object_types):
-                for j in range(len(object_types)):
-                    if (obj.name == object_types[j]):
-                        
-                        frame = obj.drawSelf(frame, colors[j])
+            # Draw object with specific color based on object type index in OBJECT_TYPES list              
+            if (obj.name in OBJECT_TYPES):
+                frame = obj.drawSelf(frame, colors[OBJECT_TYPES.index(obj.name)])
+                tracked_objects += 1
+                
+                # Insert into database as soon as a tracked object is detected if 10 seconds have passed since last insert
+                # After that, insert every 10 seconds as long as one or more tracked objects are in frame
+                if(send_data == True):
+                    print(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
+                    postgresql.write(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
+                    data_sent = True
+                    send_data = False
                         
            # Draw other objects in white  
             else:
                 frame = obj.drawSelf(frame, [255, 255, 255])
+                untracked_objects += 1
                 
-            # If object type is being tracked and 10 seconds have passed
-            # Send to database
-            if ((obj.name in object_types) and (send_data == True)):
-                print(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
-                object_detected = True
-                postgresql.write(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
                 
         # Rescale and upload screenshot to database every 10 seconds
-        if(send_data == True):
+        if(data_sent == True):
             scale_factor = 0.75
             frame_rescaled = cv2.resize(frame, (int(frame.shape[1] * scale_factor), int(frame.shape[0] * scale_factor)))
             postgresql.writeImage(frame_rescaled, timestamp)
             
             postgresql.save()
-            object_detected = False
-            send_data = False
+            data_sent = False
 
-    # Draw framerate in corner of frame
-    cv2.putText(frame,'FPS: {0:.2f}'.format(fps),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
+    # Draw framerate in corner of frame (cv2.putText does not support "\n", thus a for loop is needed)
+    menu_text = [f'Press Esc to exit', f'Fps: {fps:.2f}',
+                 f'Tracked objects: {tracked_objects}',
+                 f'Untracked objects: {untracked_objects}']
+    
+    spacing = cv2.getTextSize('X', cv2.FONT_HERSHEY_SIMPLEX, 0.75, 2)
+    
+    for i in range(len(menu_text)):
+        cv2.putText(frame, menu_text[i], (20, 30 + (i * (spacing[0][1] + 5))), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)       
+
 
     # All the results have been drawn on the frame, so it's time to display it.
     cv2.imshow('Object detector', frame)
+
 
     # Calculate framerate
     t2 = cv2.getTickCount()
     time1 = (t2-t1)/freq
     fps= 1/time1
 
+
     # Press 'q' to quit
-    if cv2.waitKey(1) == ord('q'):
+    if cv2.waitKey(1) == 27:
         break
+
 
 # Clean up
 cv2.destroyAllWindows()

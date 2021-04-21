@@ -1,7 +1,7 @@
 import cv2
 from threading import Thread
 
-# Camera class that controls video capturing
+# Camera class captures images from video feed and uses threading to improve fps by not forcing the rest of the program to wait
 class VideoStream:
     def __init__(self,resolution=(640,480)):
         # Initialize piCamera

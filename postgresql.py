@@ -10,14 +10,15 @@ FILE_PATH = os.path.join(CWD_PATH, 'authentication/details.json')
 
 with open(FILE_PATH, 'r') as f:
     data = f.read()
-    print(data)
 
 # Parse file
-obj = json.loads(data)
+json_obj = json.loads(data)
+print(json_obj)
+print(f'Connecting to PostgreSQL DB: "%s" with user: "%s"' % (json_obj['dbname'], json_obj['user']))
 
 
 try:
-    conn = psycopg2.connect(**obj)
+    conn = psycopg2.connect(**json_obj)
     cur = conn.cursor()
     cur.execute("""SELECT datname from pg_database""")
     rows = cur.fetchall()
@@ -41,13 +42,15 @@ def write(label, confidence, xposition, yposition, timestamp):
 # Convert to binary and write image to database
 def writeImage(image, timestamp):
     try:
+        # Create buffer for encoding image variable to base64
         retval, buffer = cv2.imencode('.jpg', image)
         str = base64.b64encode(buffer)
+        
+        # Convert from base64 to byte array
         binary = bytearray(str)
-        print(binary)
+        
         cur.execute("INSERT INTO images (data, timestamp) VALUES (%s, %s)", (binary, timestamp))
         print("Success writing image to database")
-        #cur.execute("INSERT INTO images(data) VALUES (%s)", (binary,))
         
     except Exception as e:
         print("error writing image to database:", e)
