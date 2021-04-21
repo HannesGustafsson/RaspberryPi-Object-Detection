@@ -6,9 +6,10 @@ import numpy as np
 import time
 import json
 from datetime import datetime
-import video_stream
+from video_stream import VideoStream
 from tflite_runtime.interpreter import Interpreter
 import postgresql
+from models.detected_object import DetectedObject
 
 
 # Set and parse arguments
@@ -77,7 +78,7 @@ timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 # Initialize video stream
-videostream = video_stream.VideoStream(resolution=(camera_res[0], camera_res[1])).start()
+videostream = VideoStream(resolution=(camera_res[0], camera_res[1])).start()
 time.sleep(1)
 
 
@@ -112,44 +113,32 @@ while True:
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     for i in range(len(scores)):
         if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0)):
-
-            # Get bounding box coordinates and draw box
-            # Interpreter can return coordinates that are outside of image dimensions, need to force them to be within image using max() and min()
-            ymin = int(max((boxes[i][0] * camera_res[1]), 1))
-            xmin = int(max((boxes[i][1] * camera_res[0]), 1))
-            ymax = int(min((boxes[i][2] * camera_res[1]), camera_res[1]))
-            xmax = int(min((boxes[i][3] * camera_res[0]), camera_res[0]))
             
-            x_pos = int(xmax - ((xmax - xmin) / 2))
-            y_pos = int(ymax - ((ymax - ymin) / 2))
-            
-            object_name = labels[int(classes[i])] # Look up object name from "labels" array using class index
-            label = '%s: %d%%' % (object_name, int(scores[i]*100)) # Example: 'person: 72%'
-            labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2) # Get font size
-            label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
+            # Create new detected object with detection parameters
+            obj = DetectedObject(labels[int(classes[i])],
+                                      scores[i],
+                                      int(max((boxes[i][0] * camera_res[1]), 1)),
+                                      int(max((boxes[i][1] * camera_res[0]), 1)),
+                                      int(min((boxes[i][2] * camera_res[1]), camera_res[1])),
+                                      int(min((boxes[i][3] * camera_res[0]), camera_res[0])))
            
             # Draw object with specific color based on object type
-            if (object_name in object_types):
+            if (obj.name in object_types):
                 for j in range(len(object_types)):
-                    if (object_name == object_types[j]):
-                        cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (colors[j][0], colors[j][1], colors[j][2]), 2)
-                        cv2.circle(frame, (x_pos,y_pos), radius=4, color=(0, 0, 255), thickness=-1)
-                        cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin), (colors[j][0], colors[j][1], colors[j][2]), cv2.FILLED) # Draw white box to put label text in
-                        cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
-           
+                    if (obj.name == object_types[j]):
+                        
+                        frame = obj.drawSelf(frame, colors[j])
+                        
            # Draw other objects in white  
             else:
-                cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (255, 255, 255), 2)
-                cv2.circle(frame, (x_pos,y_pos), radius=4, color=(0, 0, 255), thickness=-1)
-                cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
-                cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
-            
+                frame = obj.drawSelf(frame, [255, 255, 255])
+                
             # If object type is being tracked and 10 seconds have passed
             # Send to database
-            if ((object_name in object_types) and (send_data == True)):
-                print(object_name, int(scores[i]*100), x_pos, y_pos, timestamp)
+            if ((obj.name in object_types) and (send_data == True)):
+                print(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
                 object_detected = True
-                postgresql.write(object_name, int(scores[i]*100), x_pos, y_pos, timestamp)
+                postgresql.write(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
                 
         # Rescale and upload screenshot to database every 10 seconds
         if(send_data == True):
@@ -158,7 +147,6 @@ while True:
             postgresql.writeImage(frame_rescaled, timestamp)
             
             postgresql.save()
-            cv2.imwrite('image.jpg', frame_rescaled)
             object_detected = False
             send_data = False
 
