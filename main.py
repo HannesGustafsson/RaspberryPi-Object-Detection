@@ -148,15 +148,6 @@ while True:
                 untracked_objects += 1
                 
                 
-        # Rescale and upload screenshot to database every 10 seconds
-        if(data_sent == True):
-            scale_factor = 0.75
-            frame_rescaled = cv2.resize(frame, (int(frame.shape[1] * scale_factor), int(frame.shape[0] * scale_factor)))
-            postgresql.writeImage(frame_rescaled, timestamp)
-            
-            postgresql.save()
-            data_sent = False
-
     # Draw framerate in corner of frame (cv2.putText does not support "\n", thus a for loop is needed)
     menu_text = [f'Press Esc to exit', f'Fps: {fps:.2f}',
                  f'Tracked objects: {tracked_objects}',
@@ -168,7 +159,16 @@ while True:
         cv2.putText(frame, menu_text[i], (20, 30 + (i * (spacing[0][1] + 5))), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2, cv2.LINE_AA)       
 
 
-    # All the results have been drawn on the frame, so it's time to display it.
+    # Rescale and upload screenshot to database every 10 seconds
+    if(data_sent == True):
+        scale_factor = 0.75
+        frame_rescaled = cv2.resize(frame, (int(frame.shape[1] * scale_factor), int(frame.shape[0] * scale_factor)))
+        postgresql.writeImage(frame_rescaled, timestamp)
+        
+        postgresql.save()
+        data_sent = False
+        
+    # Display image on screen
     cv2.imshow('Object detector', frame)
 
 
