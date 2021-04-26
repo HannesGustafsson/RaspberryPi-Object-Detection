@@ -1,6 +1,4 @@
-import os
 import psycopg2
-import json
 import base64
 import cv2
 
@@ -16,9 +14,7 @@ class Postgresql:
             print('Connected to databases:', rows)
         
         except Exception as e:
-            raise Excecption("Error connecting to database:", e)
-
-  
+            raise Excecption("Error connecting to database:", e)  
         
         
     # Write SQL query for adding one object
@@ -35,11 +31,11 @@ class Postgresql:
     # Convert to binary and write image to database
     def writeImage(self, image, timestamp):
         try:
-            # Create buffer for encoding image variable to base64
+            # Create buffer for encoding image variable to base64 string
             retval, buffer = cv2.imencode('.jpg', image)
             str = base64.b64encode(buffer)
             
-            # Convert from base64 to byte array
+            # Convert from base64 string to byte array
             binary = bytearray(str)
             
             self.cur.execute("INSERT INTO images (data, timestamp) VALUES (%s, %s)", (binary, timestamp))
@@ -53,7 +49,7 @@ class Postgresql:
     def getImage(self):
         try:
             self.cur.execute("SELECT data FROM images ORDER BY timestamp DESC LIMIT 1")
-            image_data = cur.fetchone()
+            image_data = self.cur.fetchone()
             print(type(image_data[0]))
             return image_data[0]
             

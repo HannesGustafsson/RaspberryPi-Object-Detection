@@ -102,6 +102,8 @@ timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 videostream = VideoStream(resolution=(CAMERA_RES[0], CAMERA_RES[1])).start()
 time.sleep(1)
 
+parkingspot = ParkingSpot("allo", 100, 100, 500, 500)
+
 
 while True:
     # Start frame rate timer
@@ -136,6 +138,7 @@ while True:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Loop over all detections and draw detection box if confidence is above minimum threshold
+    objects_list = []
     for i in range(len(scores)):
         if ((scores[i] > MIN_CONF_THRESHOLD) and (scores[i] <= 1.0)):
             
@@ -150,6 +153,7 @@ while True:
             # Draw object with specific color based on object type index in OBJECT_TYPES list              
             if (obj.name in OBJECT_TYPES):
                 frame = obj.draw_self(frame, colors[OBJECT_TYPES.index(obj.name)])
+                objects_list.append(obj) 
                 tracked_objects += 1
                 
                 # Insert into database as soon as a tracked object is detected if 10 seconds have passed since last insert
@@ -164,7 +168,10 @@ while True:
             else:
                 frame = obj.draw_self(frame, [255, 255, 255])
                 untracked_objects += 1
-                
+     
+    # Check all parking spots for vacance and draw boxes
+    parkingspot.check(objects_list)
+    frame = parkingspot.draw_self(frame)
                 
     # Draw framerate in corner of frame (cv2.putText does not support "\n", thus a for loop is needed)
     menu_text = [f'Press Esc to exit', f'Fps: {fps:.2f}',
