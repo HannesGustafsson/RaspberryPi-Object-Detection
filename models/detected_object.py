@@ -3,19 +3,19 @@ import cv2
 
 # Object class for detected objects containing coordinates and identification properties
 class DetectedObject:
-    def __init__(self, name, confidence, yMin, xMin, yMax, xMax):
+    def __init__(self, name, confidence, ymin, xmin, ymax, xmax):
         self.name = name
         self.confidence = int(confidence *100)
-        self.yMin = yMin
-        self.xMin = xMin
-        self.yMax = yMax
-        self.xMax = xMax
+        self.yMin = ymin
+        self.xMin = xmin
+        self.yMax = ymax
+        self.xMax = xmax
         
-        self.xCenter = int(xMax - ((xMax - xMin) / 2))
-        self.yCenter = int(yMax - ((yMax - yMin) / 2))
+        self.xCenter = int(xmax - ((xmax - xmin) / 2))
+        self.yCenter = int(ymax - ((ymax - ymin) / 2))
         
     # Draw bounding box and label  of self on imput image and return it
-    def drawSelf(self, frame, colors):
+    def draw_self(self, frame, colors):
         image = frame
         
         label = '%s: %d%%' % (self.name, self.confidence) # Name and confidence

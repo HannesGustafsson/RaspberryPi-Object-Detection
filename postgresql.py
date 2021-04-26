@@ -5,74 +5,74 @@ import base64
 import cv2
 
 
-CWD_PATH = os.path.dirname(__file__)
-FILE_PATH = os.path.join(CWD_PATH, 'authentication/details.json')
+class Postgresql:
+    def __init__(self, login):        
+        self.conn = psycopg2.connect(**login)
+        self.cur = self.conn.cursor()
+        
+        try:
+            self.cur.execute("""SELECT datname from pg_database""")
+            rows = self.cur.fetchall()
+            print('Connected to databases:', rows)
+        
+        except Exception as e:
+            raise Excecption("Error connecting to database:", e)
 
-with open(FILE_PATH, 'r') as f:
-    data = f.read()
+  
+        
+        
+    # Write SQL query for adding one object
+    def write(self, label, confidence, xposition, yposition, timestamp):
+        try:
+            self.cur.execute("INSERT INTO picamera (label, confidence, xposition, yposition, timestamp) VALUES (%s, %s, %s, %s, %s)",
+                        (label, confidence, xposition, yposition, timestamp))
+            print("Success writing to database")
+            
+        except Exception as e:
+            print("error writing to database:", e)
+            
+            
+    # Convert to binary and write image to database
+    def writeImage(self, image, timestamp):
+        try:
+            # Create buffer for encoding image variable to base64
+            retval, buffer = cv2.imencode('.jpg', image)
+            str = base64.b64encode(buffer)
+            
+            # Convert from base64 to byte array
+            binary = bytearray(str)
+            
+            self.cur.execute("INSERT INTO images (data, timestamp) VALUES (%s, %s)", (binary, timestamp))
+            print("Success writing image to database")
+            
+        except Exception as e:
+            print("error writing image to database:", e)
+            
 
-# Parse file
-json_obj = json.loads(data)
-print(json_obj)
-print(f'Connecting to PostgreSQL DB: "%s" with user: "%s"' % (json_obj['dbname'], json_obj['user']))
-
-
-try:
-    conn = psycopg2.connect(**json_obj)
-    cur = conn.cursor()
-    cur.execute("""SELECT datname from pg_database""")
-    rows = cur.fetchall()
-    print('Connected to databases:', rows)
-    
-except Exception as e:
-    print("Error connecting to database:", e)
-    
-    
-# Write SQL query for adding one object
-def write(label, confidence, xposition, yposition, timestamp):
-    try:
-        cur.execute("INSERT INTO picamera (label, confidence, xposition, yposition, timestamp) VALUES (%s, %s, %s, %s, %s)",
-                    (label, confidence, xposition, yposition, timestamp))
-        print("Success writing to database")
+    # Get latest image from database
+    def getImage(self):
+        try:
+            self.cur.execute("SELECT data FROM images ORDER BY timestamp DESC LIMIT 1")
+            image_data = cur.fetchone()
+            print(type(image_data[0]))
+            return image_data[0]
+            
+        except Exception as e:
+            print("error getting image from database:", e)
+            
+    # Commit additions to save    
+    def save(self):
+        try:
+            self.conn.commit()
+            print("Success committing to database")
+            
+        except Exception as e:
+            print("error committing to database:", e)
+            
+    # Close all connections  
+    def close(self):
+        self.conn.close()
+        self.cur.close()
         
-    except Exception as e:
-        print("error writing to database:", e)
-        
-        
-# Convert to binary and write image to database
-def writeImage(image, timestamp):
-    try:
-        # Create buffer for encoding image variable to base64
-        retval, buffer = cv2.imencode('.jpg', image)
-        str = base64.b64encode(buffer)
-        
-        # Convert from base64 to byte array
-        binary = bytearray(str)
-        
-        cur.execute("INSERT INTO images (data, timestamp) VALUES (%s, %s)", (binary, timestamp))
-        print("Success writing image to database")
-        
-    except Exception as e:
-        print("error writing image to database:", e)
-        
-
-# Get latest image from database
-def getImage():
-    try:
-        cur.execute("SELECT data FROM images ORDER BY timestamp DESC LIMIT 1")
-        image_data = cur.fetchone()
-        print(type(image_data[0]))
-        return image_data[0]
-        
-    except Exception as e:
-        print("error getting image from database:", e)
-        
-# Commit additions to save    
-def save():
-    try:
-        conn.commit()
-        print("Success committing to database")
-        
-    except Exception as e:
-        print("error committing to database:", e)
-        
+            
+            

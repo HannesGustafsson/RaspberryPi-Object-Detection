@@ -8,14 +8,15 @@ import json
 from datetime import datetime
 from video_stream import VideoStream
 from tflite_runtime.interpreter import Interpreter
-import postgresql
+from postgresql import Postgresql
 from models.detected_object import DetectedObject
+from models.parking_spot import ParkingSpot
 
 
 # Set and parse arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--threshold', help = 'Specify minimum required confidence for an object. Default: 0.5', default = 0.5)
-parser.add_argument('--objecttypes', help =' Specify which object types to keep track of. Default: person car', default = 'person car 1 2 3 4 5 6 7 8 9')
+parser.add_argument('--objecttypes', help =' Specify which object types to keep track of. Default: person car motorcycle truck', default = 'person car truck motorcycle')
 parser.add_argument('--resolution', help = 'Specify camera resolution in format WIDTHxHEIGHT. Default: 1280x720', default = '1280x720')
 parser.add_argument('--interval', help = 'Specify minimum DB transmission interval. Default: 10', default = 10)
 args = parser.parse_args()
@@ -41,22 +42,39 @@ CWD_PATH = os.getcwd()
 MODEL_PATH = os.path.join(CWD_PATH, 'coco_ssd_mobilenet_v1', 'detect.tflite')
 LABELS_PATH = os.path.join(CWD_PATH, 'coco_ssd_mobilenet_v1', 'labelmap.txt')
 COLORS_PATH = os.path.join(CWD_PATH, 'colors.json')
+LOGIN_PATH = os.path.join(CWD_PATH, 'authentication/details.json')
 
 
 # Load the label map
 with open(LABELS_PATH, 'r') as f:
     labels = [line.strip() for line in f.readlines()]
-    
+    f.close()
+        
+# Open file with color codes to display different object types as different colors, based on order in OBJECT_TYPES list
 with open(COLORS_PATH, 'r') as f:
     data = f.read()
+    json_colors = json.loads(data)
+    colors = json_colors['color']
+    f.close()
 
-# Parse file
-json_colors = json.loads(data)
-colors = json_colors['color']
-    
+# Open file with login details
+with open(LOGIN_PATH, 'r') as f:
+    try:
+        data = f.read()
+        json_login = json.loads(data)
+        print(json_login)
+        print(f'Connecting to PostgreSQL DB: "%s" with user: "%s"' % (json_login['dbname'], json_login['user']))
+        
+        # Set up database connection
+        postgres = Postgresql(json_login)
+    except Exception as e:
+        print("database connection error:", e)
+    finally:
+        f.close()
+
 
 # Load the Tensorflow Lite model.
-interpreter = Interpreter(model_path=MODEL_PATH)
+interpreter = Interpreter(model_path = MODEL_PATH)
 interpreter.allocate_tensors()
 
 
@@ -131,20 +149,20 @@ while True:
            
             # Draw object with specific color based on object type index in OBJECT_TYPES list              
             if (obj.name in OBJECT_TYPES):
-                frame = obj.drawSelf(frame, colors[OBJECT_TYPES.index(obj.name)])
+                frame = obj.draw_self(frame, colors[OBJECT_TYPES.index(obj.name)])
                 tracked_objects += 1
                 
                 # Insert into database as soon as a tracked object is detected if 10 seconds have passed since last insert
                 # After that, insert every 10 seconds as long as one or more tracked objects are in frame
                 if(send_data == True):
                     print(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
-                    postgresql.write(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
+                    postgres.write(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
                     data_sent = True
                     send_data = False
                         
            # Draw other objects in white  
             else:
-                frame = obj.drawSelf(frame, [255, 255, 255])
+                frame = obj.draw_self(frame, [255, 255, 255])
                 untracked_objects += 1
                 
                 
@@ -163,13 +181,13 @@ while True:
     if(data_sent == True):
         scale_factor = 0.75
         frame_rescaled = cv2.resize(frame, (int(frame.shape[1] * scale_factor), int(frame.shape[0] * scale_factor)))
-        postgresql.writeImage(frame_rescaled, timestamp)
+        postgres.writeImage(frame_rescaled, timestamp)
         
-        postgresql.save()
+        postgres.save()
         data_sent = False
         
     # Display image on screen
-    cv2.imshow('Object detector', frame)
+    cv2.imshow('Camera Feed', frame)
 
 
     # Calculate framerate
@@ -188,5 +206,4 @@ cv2.destroyAllWindows()
 videostream.stop()
 
 # Close connection to the database
-postgresql.cur.close()
-postgresql.conn.close()
+postgres.close()

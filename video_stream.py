@@ -39,6 +39,7 @@ class VideoStream:
     def stop(self):
         self.disabled = True
         
+        
 class VideoCamera(object):
     def __init__(self):
         self.video = cv2.VideoCapture(0)
