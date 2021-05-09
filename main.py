@@ -102,7 +102,10 @@ timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 videostream = VideoStream(resolution=(CAMERA_RES[0], CAMERA_RES[1])).start()
 time.sleep(1)
 
-parkingspot = ParkingSpot("allo", 100, 100, 500, 500)
+# Create list of parking spots
+parkingspots = [
+    ParkingSpot("PS1", 100, 100, 300, 500),
+    ParkingSpot("PS2", 350, 100, 550, 500)]
 
 
 while True:
@@ -162,16 +165,17 @@ while True:
                     print(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
                     postgres.write(obj.name, obj.confidence, obj.xCenter, obj.yCenter, timestamp)
                     data_sent = True
-                    send_data = False
                         
            # Draw other objects in white  
             else:
                 frame = obj.draw_self(frame, [255, 255, 255])
                 untracked_objects += 1
      
+    send_data = False # Reset send_data flag
     # Check all parking spots for vacance and draw boxes
-    parkingspot.check(objects_list)
-    frame = parkingspot.draw_self(frame)
+    for i in parkingspots:
+        i.check(objects_list)
+        frame = i.draw_self(frame)
                 
     # Draw framerate in corner of frame (cv2.putText does not support "\n", thus a for loop is needed)
     menu_text = [f'Press Esc to exit', f'Fps: {fps:.2f}',
