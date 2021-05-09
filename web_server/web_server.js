@@ -19,7 +19,6 @@ const port = 3000;
 console.log(login);
 
 app.get('/', async function (req, res) {
-    console.log(req.body);
     res.render('index', {
         timestamps: await getTimestamps(),
         databases: await getDatabases(),
@@ -38,7 +37,7 @@ app.post('/', async function (req, res) {
 })
 
 app.listen(port, "0.0.0.0", function () {
-        console.log('Listening on port 3000');
+        console.log(`Listening on port ${port}`);
 });
 
 
